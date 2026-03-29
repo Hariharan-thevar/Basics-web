@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel – SY Traders{% endblock %}
+{% block page_title %}Admin Panel{% endblock %}
+
+{% block content %}
+
+<!-- ===== ADMIN STAT CARDS ===== -->
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-icon">👥</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_users }}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">📦</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_products }}</div>
+      <div class="stat-label">Total Products</div>
+    </div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon">🛒</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_orders }}</div>
+      <div class="stat-label">Total Orders</div>
+    </div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon">💰</div>
+    <div class="stat-info">
+      <div class="stat-value">₹{{ "%.0f"|format(total_revenue) }}</div>
+      <div class="stat-label">Total Revenue</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADMIN CHARTS ===== -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="card-header"><h3>Products by Brand</h3></div>
+    <div class="chart-wrapper">
+      <canvas id="brandChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="card-header"><h3>Top Selling Products</h3></div>
+    <div class="chart-wrapper">
+      <canvas id="topProductsChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ALL USERS ===== -->
+<div class="section-card">
+  <div class="card-header">
+    <h3>👥 All Users</h3>
+    <span class="badge-count">{{ users | length }}</span>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Joined</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr {% if u.id == session.user_id %}class="highlight-row"{% endif %}>
+          <td>{{ u.id }}</td>
+          <td>
+            <div class="user-cell">
+              <div class="mini-avatar">{{ u.name[0].upper() }}</div>
+              <strong>{{ u.name }}</strong>
+              {% if u.id == session.user_id %}<span class="you-badge">You</span>{% endif %}
+            </div>
+          </td>
+          <td>{{ u.email }}</td>
+          <td><span class="badge-role {{ u.role }}">{{ u.role | upper }}</span></td>
+          <td>{{ u.created_at[:10] }}</td>
+          <td>
+            {% if u.id != session.user_id %}
+            <form method="POST" action="{{ url_for('delete_user', uid=u.id) }}" onsubmit="return confirm('Delete user {{ u.name }}?')">
+              <button type="submit" class="btn-sm btn-delete">Delete</button>
+            </form>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== ALL PRODUCTS ===== -->
+<div class="section-card">
+  <div class="card-header">
+    <h3>📦 All Products</h3>
+    <span class="badge-count">{{ all_products | length }}</span>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Brand</th>
+          <th>Category</th>
+          <th>Size</th>
+          <th>Color</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Added By</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in all_products %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td><strong>{{ p.name }}</strong></td>
+          <td>{{ p.brand }}</td>
+          <td><span class="badge-category">{{ p.category }}</span></td>
+          <td>{{ p.size }}</td>
+          <td>{{ p.color }}</td>
+          <td>₹{{ "%.2f"|format(p.price) }}</td>
+          <td><span class="stock-badge {% if p.stock < 10 %}low{% endif %}">{{ p.stock }}</span></td>
+          <td>{{ p.added_by_name or '—' }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('delete_product', pid=p.id) }}" onsubmit="return confirm('Delete product?')">
+              <button type="submit" class="btn-sm btn-delete">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="empty-row">No products in system.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== ALL ORDERS ===== -->
+<div class="section-card">
+  <div class="card-header">
+    <h3>🛍️ All Orders</h3>
+    <span class="badge-count">{{ all_orders | length }}</span>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Placed By</th>
+          <th>Date</th>
+          <th>Update Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in all_orders %}
+        <tr>
+          <td>{{ o.id }}</td>
+          <td><strong>{{ o.customer_name }}</strong></td>
+          <td>{{ o.product_name }}</td>
+          <td>{{ o.quantity }}</td>
+          <td>₹{{ "%.2f"|format(o.total_price) }}</td>
+          <td><span class="status-badge {{ o.status.lower() }}">{{ o.status }}</span></td>
+          <td>{{ o.placed_by_name or '—' }}</td>
+          <td>{{ o.created_at[:10] }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('update_order_status', oid=o.id) }}" class="inline-status-form">
+              <select name="status" class="status-select">
+                {% for s in ['Pending','Processing','Shipped','Delivered','Cancelled'] %}
+                <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn-sm btn-edit">✓</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="empty-row">No orders in system.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const brandData      = {{ brand_data      | tojson }};
+const topProductData = {{ top_products    | tojson }};
+
+const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+
+// Products by Brand – Horizontal Bar
+new Chart(document.getElementById('brandChart'), {
+  type: 'bar',
+  data: {
+    labels: brandData.map(d => d[0]),
+    datasets: [{
+      label: 'Products',
+      data: brandData.map(d => d[1]),
+      backgroundColor: COLORS,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// Top Selling Products – Bar
+new Chart(document.getElementById('topProductsChart'), {
+  type: 'bar',
+  data: {
+    labels: topProductData.map(d => d[0]),
+    datasets: [{
+      label: 'Units Sold',
+      data: topProductData.map(d => d[1]),
+      backgroundColor: 'rgba(16,185,129,0.7)',
+      borderColor: '#10b981',
+      borderWidth: 1,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+    },
+    plugins: { legend: { labels: { color: '#94a3b8' } } }
+  }
+});
+</script>
+{% endblock %}

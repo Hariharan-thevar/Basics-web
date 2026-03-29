@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – SY Traders{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ===== STAT CARDS ===== -->
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-icon">📦</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_products }}</div>
+      <div class="stat-label">Total Products</div>
+    </div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">🛒</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_orders }}</div>
+      <div class="stat-label">Total Orders</div>
+    </div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon">💰</div>
+    <div class="stat-info">
+      <div class="stat-value">₹{{ "%.0f"|format(total_revenue) }}</div>
+      <div class="stat-label">Revenue (Delivered)</div>
+    </div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon">⚠️</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ low_stock }}</div>
+      <div class="stat-label">Low Stock Items</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CHARTS ROW ===== -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="card-header">
+      <h3>Sales by Category</h3>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="card-header">
+      <h3>Order Status</h3>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card wide">
+    <div class="card-header">
+      <h3>Monthly Revenue</h3>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD PRODUCT FORM ===== -->
+<div class="section-card">
+  <div class="card-header collapsible" onclick="toggleSection('addProductForm')">
+    <h3>➕ Add New Product</h3>
+    <span class="toggle-icon">▼</span>
+  </div>
+  <div id="addProductForm" class="collapsible-content">
+    <form method="POST" action="{{ url_for('add_product') }}" class="inline-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Product Name</label>
+          <input type="text" name="name" placeholder="e.g. Bouncy Runner" required/>
+        </div>
+        <div class="form-group">
+          <label>Brand</label>
+          <input type="text" name="brand" placeholder="e.g. Nike" required/>
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select name="category" required>
+            <option value="">Select...</option>
+            <option value="Sports">Sports</option>
+            <option value="Casual">Casual</option>
+            <option value="School">School</option>
+            <option value="Sandals">Sandals</option>
+            <option value="Formal">Formal</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Size (Age Group)</label>
+          <select name="size" required>
+            <option value="">Select...</option>
+            <option value="1Y">1Y</option>
+            <option value="2Y">2Y</option>
+            <option value="3Y">3Y</option>
+            <option value="4Y">4Y</option>
+            <option value="5Y">5Y</option>
+            <option value="6Y">6Y</option>
+            <option value="7Y">7Y</option>
+            <option value="8Y+">8Y+</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input type="text" name="color" placeholder="e.g. Red" required/>
+        </div>
+        <div class="form-group">
+          <label>Price (₹)</label>
+          <input type="number" name="price" placeholder="0.00" step="0.01" min="0" required/>
+        </div>
+        <div class="form-group">
+          <label>Stock</label>
+          <input type="number" name="stock" placeholder="0" min="0" required/>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">Add Product</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== PRODUCTS TABLE ===== -->
+<div class="section-card">
+  <div class="card-header">
+    <h3>📦 Products</h3>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Brand</th>
+          <th>Category</th>
+          <th>Size</th>
+          <th>Color</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td><strong>{{ p.name }}</strong></td>
+          <td>{{ p.brand }}</td>
+          <td><span class="badge-category">{{ p.category }}</span></td>
+          <td>{{ p.size }}</td>
+          <td>{{ p.color }}</td>
+          <td>₹{{ "%.2f"|format(p.price) }}</td>
+          <td>
+            <span class="stock-badge {% if p.stock < 10 %}low{% endif %}">{{ p.stock }}</span>
+          </td>
+          <td class="actions-cell">
+            <!-- Edit modal trigger -->
+            <button class="btn-sm btn-edit" onclick="openEditProduct({{ p.id }}, '{{ p.name }}', '{{ p.brand }}', '{{ p.category }}', '{{ p.size }}', '{{ p.color }}', {{ p.price }}, {{ p.stock }})">Edit</button>
+            <!-- Delete -->
+            <form method="POST" action="{{ url_for('delete_product', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this product?')">
+              <button type="submit" class="btn-sm btn-delete">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="empty-row">No products found. Add one above!</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== ADD ORDER FORM ===== -->
+<div class="section-card">
+  <div class="card-header collapsible" onclick="toggleSection('addOrderForm')">
+    <h3>🛒 Place New Order</h3>
+    <span class="toggle-icon">▼</span>
+  </div>
+  <div id="addOrderForm" class="collapsible-content">
+    <form method="POST" action="{{ url_for('add_order') }}" class="inline-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Customer Name</label>
+          <input type="text" name="customer_name" placeholder="Full name" required/>
+        </div>
+        <div class="form-group">
+          <label>Product</label>
+          <select name="product_id" required>
+            <option value="">Select product...</option>
+            {% for p in products %}
+            <option value="{{ p.id }}">{{ p.name }} (₹{{ "%.0f"|format(p.price) }}) – Stock: {{ p.stock }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" name="quantity" value="1" min="1" required/>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">Place Order</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== ORDERS TABLE ===== -->
+<div class="section-card">
+  <div class="card-header">
+    <h3>🛍️ Orders</h3>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td>{{ o.id }}</td>
+          <td><strong>{{ o.customer_name }}</strong></td>
+          <td>{{ o.product_name }}</td>
+          <td>{{ o.quantity }}</td>
+          <td>₹{{ "%.2f"|format(o.total_price) }}</td>
+          <td><span class="status-badge {{ o.status.lower() }}">{{ o.status }}</span></td>
+          <td>{{ o.created_at[:10] }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('delete_order', oid=o.id) }}" style="display:inline" onsubmit="return confirm('Delete this order?')">
+              <button type="submit" class="btn-sm btn-delete">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="empty-row">No orders yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== EDIT PRODUCT MODAL ===== -->
+<div id="editModal" class="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Edit Product</h3>
+      <button class="modal-close" onclick="document.getElementById('editModal').style.display='none'">✕</button>
+    </div>
+    <form method="POST" id="editForm" class="inline-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" name="name" id="edit_name" required/>
+        </div>
+        <div class="form-group">
+          <label>Brand</label>
+          <input type="text" name="brand" id="edit_brand" required/>
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select name="category" id="edit_category">
+            <option value="Sports">Sports</option>
+            <option value="Casual">Casual</option>
+            <option value="School">School</option>
+            <option value="Sandals">Sandals</option>
+            <option value="Formal">Formal</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Size</label>
+          <input type="text" name="size" id="edit_size" required/>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input type="text" name="color" id="edit_color" required/>
+        </div>
+        <div class="form-group">
+          <label>Price (₹)</label>
+          <input type="number" name="price" id="edit_price" step="0.01" required/>
+        </div>
+        <div class="form-group">
+          <label>Stock</label>
+          <input type="number" name="stock" id="edit_stock" required/>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Chart Data from Flask ──────────────────────────────────────
+const categoryData = {{ category_data | tojson }};
+const monthlyData  = {{ monthly_data  | tojson }};
+const statusData   = {{ status_data   | tojson }};
+
+const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+
+// Sales by Category – Doughnut
+new Chart(document.getElementById('categoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: categoryData.map(d => d[0]),
+    datasets: [{ data: categoryData.map(d => d[1]), backgroundColor: COLORS, borderWidth: 2, borderColor: '#1e293b' }]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+});
+
+// Order Status – Pie
+new Chart(document.getElementById('statusChart'), {
+  type: 'pie',
+  data: {
+    labels: statusData.map(d => d[0]),
+    datasets: [{ data: statusData.map(d => d[1]), backgroundColor: COLORS, borderWidth: 2, borderColor: '#1e293b' }]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+});
+
+// Monthly Revenue – Bar
+new Chart(document.getElementById('revenueChart'), {
+  type: 'bar',
+  data: {
+    labels: monthlyData.map(d => d[0]),
+    datasets: [{
+      label: 'Revenue (₹)',
+      data: monthlyData.map(d => d[1]),
+      backgroundColor: 'rgba(59,130,246,0.7)',
+      borderColor: '#3b82f6',
+      borderWidth: 1,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+    },
+    plugins: { legend: { labels: { color: '#94a3b8' } } }
+  }
+});
+
+// ── Edit Modal ────────────────────────────────────────────────
+function openEditProduct(id, name, brand, category, size, color, price, stock) {
+  document.getElementById('editForm').action = '/product/edit/' + id;
+  document.getElementById('edit_name').value = name;
+  document.getElementById('edit_brand').value = brand;
+  document.getElementById('edit_category').value = category;
+  document.getElementById('edit_size').value = size;
+  document.getElementById('edit_color').value = color;
+  document.getElementById('edit_price').value = price;
+  document.getElementById('edit_stock').value = stock;
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (e.target.id === 'editModal') {
+    document.getElementById('editModal').style.display = 'none';
+  }
+}
+
+// ── Collapsible Sections ──────────────────────────────────────
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+</script>
+{% endblock %}
